@@ -18,7 +18,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(authorize_books),
         migrations.CreateModel(
             name='BookAuthor',
             fields=[
@@ -36,4 +35,5 @@ class Migration(migrations.Migration):
             name='authors',
             field=models.ManyToManyField(related_name='books', through='catalog.BookAuthor', to='catalog.author'),
         ),
+        migrations.RunPython(authorize_books),
     ]
