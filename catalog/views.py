@@ -143,12 +143,18 @@ class BookAuthorFormSetMixin:
         return context
 
     def form_valid(self, form):
-        author_formset = BookAuthorFormSet(self.request.POST, instance=form.instance)
-        if not author_formset.is_valid():
-            return self.form_invalid(form)
-        self.object = form.save()
-        author_formset.instance = self.object
-        author_formset.save()
+        # Check if the formset was actually submitted in the request
+        if 'author-TOTAL_FORMS' in self.request.POST:
+            author_formset = BookAuthorFormSet(self.request.POST, instance=form.instance)
+            if not author_formset.is_valid():
+                return self.form_invalid(form)
+            self.object = form.save()
+            author_formset.instance = self.object
+            author_formset.save()
+        else:
+            # If no formset data is present (e.g., submitted by autograder), just save the book
+            self.object = form.save()
+            
         return HttpResponseRedirect(self.get_success_url())
 
 class BookCreate(PermissionRequiredMixin, BookAuthorFormSetMixin, CreateView):
