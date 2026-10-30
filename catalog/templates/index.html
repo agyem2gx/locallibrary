@@ -27,4 +27,6 @@
   <h2>Local static image</h2>
   <img src="{% static 'local_library_model_uml.png' %}"
        alt="Local static image" width="400">
+
+  <p>You have visited this page {{ num_visits }} time{{ num_visits|pluralize }}.</p>
 {% endblock %}

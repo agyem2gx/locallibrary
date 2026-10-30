@@ -2,6 +2,8 @@ from django.db import models
 from django.urls import reverse
 from django.db.models import UniqueConstraint
 from django.db.models.functions import Lower
+from django.conf import settings
+from datetime import date
 import uuid
 
 
@@ -70,10 +72,23 @@ class Author(models.Model):
         return f'{self.last_name}, {self.first_name}'
 
 
+class BookAuthor(models.Model):
+    book = models.ForeignKey('Book', on_delete=models.CASCADE)
+    author = models.ForeignKey('Author', on_delete=models.CASCADE)
+    author_order = models.IntegerField()
+
+    class Meta:
+        ordering = ['author_order']
+
+    def __str__(self):
+        return f"{self.author} ({self.book})"
+
+
 class Book(models.Model):
     """Model representing a book (but not a specific copy of a book)."""
     title = models.CharField(max_length=200)
-    author = models.ForeignKey(Author, on_delete=models.RESTRICT, null=True)
+    # author field removed in Prep 05
+    authors = models.ManyToManyField('Author', through='BookAuthor', related_name='books')
     summary = models.TextField(
         max_length=1000,
         help_text="Enter a brief description of the book"
@@ -101,7 +116,7 @@ class Book(models.Model):
 
 
 class BookInstance(models.Model):
-    """Model representing a specific copy of a book (i.e. that can be borrowed from the library)."""
+    """Model representing a specific copy of a book."""
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -110,6 +125,7 @@ class BookInstance(models.Model):
     book = models.ForeignKey(Book, on_delete=models.RESTRICT, null=True)
     imprint = models.CharField(max_length=200)
     due_back = models.DateField(null=True, blank=True)
+    borrower = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
 
     LOAN_STATUS = (
         ('m', 'Maintenance'),
@@ -126,8 +142,14 @@ class BookInstance(models.Model):
         help_text='Book availability',
     )
 
+    @property
+    def is_overdue(self):
+        """Determines if the book is overdue based on due date and current date."""
+        return bool(self.due_back and date.today() > self.due_back)
+
     class Meta:
         ordering = ['due_back']
+        permissions = (("can_mark_returned", "Set book as returned"),)
 
     def __str__(self):
         return f'{self.id} ({self.book.title})'
