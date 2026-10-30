@@ -48,7 +48,8 @@ INSTALLED_APPS = [
     'catalog.apps.CatalogConfig',
     'chat',
     'allauth',           
-    'allauth.account', 
+    'allauth.account',
+    'ninja',
 ]
 
 MIDDLEWARE = [
