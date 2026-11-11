@@ -25,10 +25,15 @@ env.read_env(str(BASE_DIR / ".env"))
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-(f2affw4!qdj+=j(f137yqj@n^rmqatc8&0ldqygnel0l#xrhy'
+# On the server, SECRET_KEY comes from /srv/apps/.env; the default is for your laptop only.
+SECRET_KEY = env(
+    "SECRET_KEY",
+    default='django-insecure-(f2affw4!qdj+=j(f137yqj@n^rmqatc8&0ldqygnel0l#xrhy',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# True on your laptop; the server's .env sets DEBUG=False.
+DEBUG = env.bool("DEBUG", default=True)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
@@ -54,6 +59,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -126,6 +132,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+# collectstatic copies every static file here; WhiteNoise serves them when DEBUG=False.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 # Email
@@ -140,9 +148,29 @@ MAILERS = {
 # Daphne
 ASGI_APPLICATION = "locallibrary_config.asgi.application"
 
+# Channels: Redis on the server (docker compose sets REDIS_URL). Without REDIS_URL,
+# e.g. on your laptop with no Redis running, fall back to an in-memory layer.
+if env("REDIS_URL", default=None):
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [env("REDIS_URL")]},
+        },
+    }
+else:
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 AUTHENTICATION_BACKENDS = ['allauth.account.auth_backends.AuthenticationBackend']
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 LOGIN_REDIRECT_URL = '/'
+
+# Print errors to the console so they show up in `docker compose logs`.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "root": {"handlers": ["console"], "level": "WARNING"},
+}
